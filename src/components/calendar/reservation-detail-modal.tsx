@@ -101,7 +101,20 @@ export function ReservationDetailModal({ reservation, open, onClose, role, onSta
           <div className="flex gap-2">
             <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <p className="text-gray-500 text-xs">ルート</p>
+              <div className="flex items-center justify-between">
+                <p className="text-gray-500 text-xs">ルート</p>
+                {reservation.departure_address && reservation.destination_address && (
+                  <a
+                    href={`https://www.google.com/maps/dir/${encodeURIComponent(reservation.departure_address)}/${encodeURIComponent(reservation.destination_address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800 text-xs font-medium"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    Google Mapsで確認
+                  </a>
+                )}
+              </div>
               <p className="font-medium">{reservation.departure_address ?? '-'}</p>
               <p className="text-gray-400 text-xs">↓</p>
               <p className="font-medium">{reservation.destination_address ?? '-'}</p>
@@ -189,18 +202,6 @@ export function ReservationDetailModal({ reservation, open, onClose, role, onSta
             </div>
           )}
 
-          {/* Google Maps link */}
-          {reservation.departure_address && reservation.destination_address && (
-            <a
-              href={`https://www.google.com/maps/dir/${encodeURIComponent(reservation.departure_address)}/${encodeURIComponent(reservation.destination_address)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 text-xs"
-            >
-              <MapPin className="w-3 h-3" />
-              Google Mapsでルートを確認
-            </a>
-          )}
         </div>
       </DialogContent>
     </Dialog>

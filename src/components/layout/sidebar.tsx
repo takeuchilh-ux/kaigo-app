@@ -188,8 +188,8 @@ export function Sidebar({ role, userName }: SidebarProps) {
         <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200">
           <img src="/app-icon.svg" alt="ロゴ" className="w-10 h-10 flex-shrink-0" />
           <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-900 leading-tight">マスターズスタッフ株式会社</p>
-            <p className="text-xs text-gray-500 leading-tight">送迎管理システム</p>
+            <p className="text-[11px] font-bold text-gray-900 leading-tight whitespace-nowrap">マスターズスタッフ株式会社</p>
+            <p className="text-[10px] text-gray-500 leading-tight">送迎管理システム</p>
           </div>
         </div>
         <NavLinks />

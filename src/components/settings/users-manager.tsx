@@ -13,8 +13,14 @@ interface AppUser {
   email: string
   name: string
   role: 'admin' | 'driver' | 'staff'
+  driver_id: string | null
   created_at: string
   last_sign_in_at: string | null
+}
+
+interface DriverOption {
+  id: string
+  name: string
 }
 
 const ROLE_LABELS = { admin: '管理者', driver: 'ドライバー', staff: 'スタッフ' }
@@ -26,19 +32,24 @@ const ROLE_COLORS: Record<string, string> = {
 
 export function UsersManager() {
   const [users, setUsers] = useState<AppUser[]>([])
+  const [drivers, setDrivers] = useState<DriverOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<AppUser | null>(null)
-  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'staff' as AppUser['role'], newPassword: '' })
+  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'staff' as AppUser['role'], newPassword: '', driverId: '' })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
-    const res = await fetch('/api/admin/users')
-    if (res.ok) setUsers(await res.json())
+    const [usersRes, driversRes] = await Promise.all([
+      fetch('/api/admin/users'),
+      fetch('/api/admin/users?type=drivers'),
+    ])
+    if (usersRes.ok) setUsers(await usersRes.json())
     else setError('ユーザー一覧の取得に失敗しました')
+    if (driversRes.ok) setDrivers(await driversRes.json())
     setLoading(false)
   }, [])
 
@@ -46,13 +57,13 @@ export function UsersManager() {
 
   function openCreate() {
     setEditTarget(null)
-    setForm({ email: '', password: '', name: '', role: 'staff', newPassword: '' })
+    setForm({ email: '', password: '', name: '', role: 'staff', newPassword: '', driverId: '' })
     setModalOpen(true)
   }
 
   function openEdit(u: AppUser) {
     setEditTarget(u)
-    setForm({ email: u.email, password: '', name: u.name, role: u.role, newPassword: '' })
+    setForm({ email: u.email, password: '', name: u.name, role: u.role, newPassword: '', driverId: u.driver_id ?? '' })
     setModalOpen(true)
   }
 
@@ -64,7 +75,7 @@ export function UsersManager() {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editTarget.id, name: form.name, userRole: form.role, password: form.newPassword }),
+        body: JSON.stringify({ id: editTarget.id, name: form.name, userRole: form.role, password: form.newPassword, driverId: form.driverId || null }),
       })
       if (!res.ok) { setError((await res.json()).error); setSaving(false); return }
     } else {
@@ -118,11 +129,16 @@ export function UsersManager() {
                 {u.role === 'admin' ? <Shield className="w-4 h-4 text-blue-600" /> : <User className="w-4 h-4 text-blue-600" />}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium text-gray-900">{u.name || '名前未設定'}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${ROLE_COLORS[u.role]}`}>
                     {ROLE_LABELS[u.role]}
                   </span>
+                  {u.role === 'driver' && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${u.driver_id ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {u.driver_id ? `ドライバー紐付け済` : '未紐付け'}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500">{u.email}</p>
               </div>
@@ -179,7 +195,7 @@ export function UsersManager() {
             )}
             <div className="space-y-1.5">
               <Label>ロール</Label>
-              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v as AppUser['role'] }))}>
+              <Select value={form.role} onValueChange={v => setForm(f => ({ ...f, role: v as AppUser['role'], driverId: v !== 'driver' ? '' : f.driverId }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">管理者</SelectItem>
@@ -188,6 +204,24 @@ export function UsersManager() {
                 </SelectContent>
               </Select>
             </div>
+
+            {form.role === 'driver' && (
+              <div className="space-y-1.5">
+                <Label>紐付けるドライバー <span className="text-xs text-gray-400 font-normal">（ドライバー管理で登録済みの人）</span></Label>
+                <Select value={form.driverId} onValueChange={v => setForm(f => ({ ...f, driverId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="ドライバーを選択..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">未設定</SelectItem>
+                    {drivers.map(d => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {drivers.length === 0 && (
+                  <p className="text-xs text-amber-600">※ 先にドライバー管理でドライバーを登録してください</p>
+                )}
+              </div>
+            )}
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-2">
               <Button className="flex-1" onClick={handleSave} disabled={saving}>

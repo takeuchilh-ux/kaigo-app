@@ -27,7 +27,7 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
   const [selectedReservation, setSelectedReservation] = useState<Reservation | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
 
-  const displayReservations = role === 'driver'
+  const displayReservations = role === 'driver' && driverId
     ? reservations.filter(r => r.driver_id === driverId)
     : reservations
 

@@ -31,12 +31,19 @@ function adminClient() {
   )
 }
 
-// GET /api/admin/users — list all users
-export async function GET() {
+// GET /api/admin/users — list all users (and optionally drivers list)
+export async function GET(req: Request) {
   const role = await getCallerRole()
   if (role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const admin = adminClient()
+  const { searchParams } = new URL(req.url)
+
+  if (searchParams.get('type') === 'drivers') {
+    const { data } = await admin.from('drivers').select('id, name').order('name')
+    return NextResponse.json(data ?? [])
+  }
+
   const { data: authUsers, error: authErr } = await admin.auth.admin.listUsers()
   if (authErr) return NextResponse.json({ error: authErr.message }, { status: 500 })
 
@@ -89,13 +96,13 @@ export async function PUT(req: Request) {
   const role = await getCallerRole()
   if (role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { id, name, userRole, password } = await req.json()
+  const { id, name, userRole, password, driverId } = await req.json()
   const admin = adminClient()
 
-  // Update role and name
+  // Update role, name, driver_id
   const { error } = await admin
     .from('user_roles')
-    .update({ role: userRole, name })
+    .update({ role: userRole, name, driver_id: driverId ?? null })
     .eq('id', id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

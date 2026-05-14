@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient as createSupabaseClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import type { NearMissReport, UserRole } from '@/types'
-import { Plus, AlertTriangle, Calendar, MapPin, Image as ImageIcon } from 'lucide-react'
+import { Plus, AlertTriangle, Calendar, MapPin, Image as ImageIcon, Search } from 'lucide-react'
 
 interface Props {
   initialReports: NearMissReport[]
@@ -36,6 +37,37 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
   const [photos, setPhotos] = useState<File[]>([])
   const [saving, setSaving] = useState(false)
 
+  // Google Places Autocomplete
+  const locationInputRef = useRef<HTMLInputElement>(null)
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null)
+  const placesInitialized = useRef(false)
+
+  useEffect(() => {
+    if (!open || placesInitialized.current) return
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+    if (!apiKey || apiKey === 'your_google_maps_api_key') return
+
+    placesInitialized.current = true
+    setOptions({ key: apiKey, v: 'weekly' })
+    importLibrary('places').then(() => {
+      if (!locationInputRef.current) return
+      autocompleteRef.current = new google.maps.places.Autocomplete(locationInputRef.current, {
+        componentRestrictions: { country: 'jp' },
+        fields: ['formatted_address', 'name'],
+        types: ['establishment', 'geocode'],
+      })
+      autocompleteRef.current.addListener('place_changed', () => {
+        const place = autocompleteRef.current?.getPlace()
+        if (place) {
+          const loc = place.name
+            ? `${place.name}（${place.formatted_address ?? ''}）`
+            : (place.formatted_address ?? '')
+          setForm(p => ({ ...p, location: loc }))
+        }
+      })
+    })
+  }, [open])
+
   async function handleSave() {
     if (!form.occurred_at || !form.driver_id) return
     setSaving(true)
@@ -54,7 +86,6 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
       .single()
 
     if (report) {
-      // Upload photos
       for (const photo of photos) {
         const ext = photo.name.split('.').pop()
         const path = `near-miss/${report.id}/${Date.now()}.${ext}`
@@ -102,7 +133,7 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 flex-wrap">
                     <Calendar className="w-3 h-3" />
                     {new Date(r.occurred_at).toLocaleString('ja-JP')}
                     {(r as any).drivers?.name && (
@@ -113,14 +144,14 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
                   </div>
                   {r.location && (
                     <div className="flex items-center gap-1 text-xs text-gray-500 mb-2">
-                      <MapPin className="w-3 h-3" />
-                      {r.location}
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{r.location}</span>
                     </div>
                   )}
                   <p className="text-sm text-gray-700 line-clamp-2">{r.description}</p>
                 </div>
                 {(r as any).near_miss_photos?.length > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-gray-400">
+                  <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
                     <ImageIcon className="w-3 h-3" />
                     {(r as any).near_miss_photos.length}
                   </div>
@@ -133,7 +164,7 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
 
       {/* New report dialog */}
       <Dialog open={open} onOpenChange={v => !v && setOpen(false)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>ヒヤリハット報告</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             {role === 'admin' && (
@@ -147,30 +178,65 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+
+            {/* 発生日時 + 発生場所 — stack on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>発生日時 *</Label>
-                <Input type="datetime-local" value={form.occurred_at} onChange={e => setForm(p => ({ ...p, occurred_at: e.target.value }))} />
+                <Input
+                  type="datetime-local"
+                  value={form.occurred_at}
+                  onChange={e => setForm(p => ({ ...p, occurred_at: e.target.value }))}
+                  className="w-full"
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>発生場所</Label>
-                <Input value={form.location} onChange={e => setForm(p => ({ ...p, location: e.target.value }))} placeholder="例: ○○交差点" />
+                <Label className="flex items-center gap-1">
+                  発生場所
+                  <span className="text-xs text-gray-400 font-normal">（候補が表示されます）</span>
+                </Label>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+                  <input
+                    ref={locationInputRef}
+                    value={form.location}
+                    onChange={e => setForm(p => ({ ...p, location: e.target.value }))}
+                    placeholder="例: ○○交差点"
+                    className="flex h-9 w-full rounded-md border border-input bg-background pl-8 pr-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  />
+                </div>
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label>内容・状況</Label>
-              <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={3} placeholder="何が起きたか詳しく記述..." />
+              <Textarea
+                value={form.description}
+                onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
+                rows={3}
+                placeholder="何が起きたか詳しく記述..."
+              />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            {/* 対応内容 + 対応者 — stack on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>対応内容</Label>
-                <Textarea value={form.response_content} onChange={e => setForm(p => ({ ...p, response_content: e.target.value }))} rows={2} />
+                <Textarea
+                  value={form.response_content}
+                  onChange={e => setForm(p => ({ ...p, response_content: e.target.value }))}
+                  rows={2}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>対応者</Label>
-                <Input value={form.responder} onChange={e => setForm(p => ({ ...p, responder: e.target.value }))} />
+                <Input
+                  value={form.responder}
+                  onChange={e => setForm(p => ({ ...p, responder: e.target.value }))}
+                />
               </div>
             </div>
+
             <div className="space-y-1.5">
               <Label>写真添付</Label>
               <Input
@@ -187,7 +253,11 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
           </div>
           <div className="flex gap-3">
             <Button variant="outline" className="flex-1" onClick={() => setOpen(false)}>キャンセル</Button>
-            <Button className="flex-1" onClick={handleSave} disabled={saving || !form.occurred_at || !form.driver_id}>
+            <Button
+              className="flex-1"
+              onClick={handleSave}
+              disabled={saving || !form.occurred_at || !form.driver_id}
+            >
               {saving ? '送信中...' : '報告を送信'}
             </Button>
           </div>
@@ -196,20 +266,33 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
 
       {/* Detail dialog */}
       <Dialog open={detailOpen} onOpenChange={v => !v && setDetailOpen(false)}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>ヒヤリハット詳細</DialogTitle>
           </DialogHeader>
           {selected && (
             <div className="space-y-4 text-sm">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-gray-500">発生日時</p>
                   <p className="font-medium">{new Date(selected.occurred_at).toLocaleString('ja-JP')}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">発生場所</p>
-                  <p className="font-medium">{selected.location ?? '-'}</p>
+                  <div className="flex items-start gap-1">
+                    <p className="font-medium flex-1">{selected.location ?? '-'}</p>
+                    {selected.location && (
+                      <a
+                        href={`https://www.google.com/maps/search/${encodeURIComponent(selected.location)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex-shrink-0 mt-0.5"
+                        title="Google Mapsで確認"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">ドライバー</p>

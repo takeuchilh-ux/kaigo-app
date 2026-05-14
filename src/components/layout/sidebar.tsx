@@ -185,13 +185,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
     <>
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex lg:flex-col lg:w-60 lg:fixed lg:inset-y-0 bg-white border-r border-gray-200 z-30">
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200">
-          <div className="bg-blue-600 rounded-lg p-2">
-            <Car className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900">介護タクシー</p>
-            <p className="text-xs text-gray-500">管理システム</p>
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200">
+          <img src="/app-icon.svg" alt="ロゴ" className="w-10 h-10 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-gray-900 leading-tight">マスターズスタッフ株式会社</p>
+            <p className="text-xs text-gray-500 leading-tight">送迎管理システム</p>
           </div>
         </div>
         <NavLinks />
@@ -218,10 +216,11 @@ export function Sidebar({ role, userName }: SidebarProps) {
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-30 bg-white border-b border-gray-200 flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="bg-blue-600 rounded-lg p-1.5">
-            <Car className="w-4 h-4 text-white" />
+          <img src="/app-icon.svg" alt="ロゴ" className="w-8 h-8 flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-gray-900 leading-tight truncate">マスターズスタッフ株式会社</p>
+            <p className="text-[10px] text-gray-500 leading-tight">送迎管理システム</p>
           </div>
-          <span className="text-sm font-bold text-gray-900">介護タクシー管理</span>
         </div>
         <div className="flex items-center gap-2">
           {/* Mobile badge on hamburger area */}
@@ -244,7 +243,7 @@ export function Sidebar({ role, userName }: SidebarProps) {
             className="absolute left-0 top-0 bottom-0 w-64 bg-white shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200 mt-14">
+            <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 mt-14">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                 <UserCircle className="w-5 h-5 text-blue-600" />
               </div>

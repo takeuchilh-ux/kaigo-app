@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "介護タクシー管理システム",
-  description: "介護タクシーの予約・ルート・利用者管理システム",
+  title: "送迎管理システム | マスターズスタッフ株式会社",
+  description: "マスターズスタッフ株式会社の送迎管理システム",
 };
 
 export default function RootLayout({

@@ -28,10 +28,11 @@ const DESKTOP_VIEWS = [
   { key: 'listWeek', label: '一覧' },
 ] as const
 
+// モバイル: 月=dayGridMonth / 週=listWeek / 日=listDay
 const MOBILE_VIEWS = [
-  { key: 'listWeek', label: '週' },
-  { key: 'listMonth', label: '月' },
-  { key: 'timeGridDay', label: '日' },
+  { key: 'dayGridMonth', label: '月' },
+  { key: 'listWeek',    label: '週' },
+  { key: 'listDay',     label: '日' },
 ] as const
 
 export function CalendarView({ reservations, drivers, role, driverId }: CalendarViewProps) {
@@ -43,20 +44,15 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
   const [currentView, setCurrentView] = useState<string>('dayGridMonth')
   const [title, setTitle] = useState('')
 
+  // モバイル判定 — リサイズ対応
   useEffect(() => {
-    function checkMobile() {
+    function check() {
       const mobile = window.innerWidth < 768
       setIsMobile(mobile)
-      if (mobile && calendarRef.current) {
-        const api = calendarRef.current.getApi()
-        api.changeView('listWeek')
-        setCurrentView('listWeek')
-        setTitle(api.view.title)
-      }
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
   }, [])
 
   const displayReservations = role === 'driver' && driverId
@@ -91,8 +87,8 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
     const r = info.event.extendedProps.reservation as Reservation
     const isMonth = info.view.type === 'dayGridMonth'
     return (
-      <div className="px-1.5 py-0.5 text-xs overflow-hidden w-full rounded-sm" style={{ backgroundColor: info.event.backgroundColor }}>
-        <div className="font-medium truncate text-white">
+      <div className="px-1 py-0.5 text-xs overflow-hidden w-full rounded-sm" style={{ backgroundColor: info.event.backgroundColor }}>
+        <div className="font-medium truncate text-white leading-tight">
           {!isMonth && <span className="opacity-90 mr-1">{formatTime(r.departure_time)}</span>}
           {info.event.title}
         </div>
@@ -123,34 +119,34 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
   const views = isMobile ? MOBILE_VIEWS : DESKTOP_VIEWS
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 md:px-4 py-2.5 border-b border-gray-100 gap-2">
-        {/* Left: nav + title */}
-        <div className="flex items-center gap-1 md:gap-2 min-w-0">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full">
+      {/* ヘッダー */}
+      <div className="flex items-center gap-1.5 px-2 sm:px-4 py-2.5 border-b border-gray-100 flex-wrap">
+        {/* 左: ナビ */}
+        <div className="flex items-center gap-0.5 sm:gap-1 flex-shrink-0">
           <button
             onClick={() => navigate('today')}
-            className="px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 whitespace-nowrap"
+            className="px-2 py-1 text-xs sm:text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 text-gray-700 whitespace-nowrap"
           >
             今日
           </button>
-          <button onClick={() => navigate('prev')} className="p-1 md:p-1.5 rounded-full hover:bg-gray-100 text-gray-600">
-            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
+          <button onClick={() => navigate('prev')} className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
+            <ChevronLeft className="w-4 h-4" />
           </button>
-          <button onClick={() => navigate('next')} className="p-1 md:p-1.5 rounded-full hover:bg-gray-100 text-gray-600">
-            <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+          <button onClick={() => navigate('next')} className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
+            <ChevronRight className="w-4 h-4" />
           </button>
-          <h2 className="text-sm md:text-lg font-medium text-gray-800 ml-0.5 md:ml-1 truncate">{title}</h2>
+          <h2 className="text-sm sm:text-base font-medium text-gray-800 ml-0.5 whitespace-nowrap">{title}</h2>
         </div>
 
-        {/* Right: view switcher + add button */}
-        <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
+        {/* 右: ビュー切替 + 予約作成 */}
+        <div className="flex items-center gap-1.5 ml-auto flex-shrink-0">
           <div className="flex border border-gray-200 rounded-lg overflow-hidden">
             {views.map(v => (
               <button
                 key={v.key}
                 onClick={() => switchView(v.key)}
-                className={`px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium transition-colors ${
                   currentView === v.key
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-600 hover:bg-gray-50'
@@ -161,28 +157,31 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
             ))}
           </div>
           {role !== 'driver' && (
-            <Button size="sm" onClick={() => router.push('/reservations/new')} className="gap-1 h-8 px-2 md:px-3">
-              <Plus className="w-3.5 h-3.5 md:w-4 md:h-4" />
-              <span className="hidden sm:inline text-xs md:text-sm">予約作成</span>
-            </Button>
+            <button
+              onClick={() => router.push('/reservations/new')}
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors whitespace-nowrap"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>予約作成</span>
+            </button>
           )}
         </div>
       </div>
 
-      {/* Driver legend */}
+      {/* ドライバー凡例 */}
       {role !== 'driver' && drivers.length > 0 && (
-        <div className="flex flex-wrap gap-2 md:gap-3 px-3 md:px-4 py-2 border-b border-gray-100 bg-gray-50/50">
+        <div className="flex flex-wrap gap-2 px-3 sm:px-4 py-1.5 border-b border-gray-100 bg-gray-50/50">
           {drivers.map(d => (
-            <div key={d.id} className="flex items-center gap-1 md:gap-1.5 text-xs text-gray-600">
-              <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
-              {d.name}
+            <div key={d.id} className="flex items-center gap-1 text-xs text-gray-600">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: d.color }} />
+              <span className="truncate max-w-[80px] sm:max-w-none">{d.name}</span>
             </div>
           ))}
         </div>
       )}
 
-      {/* FullCalendar */}
-      <div className="fc-google-style">
+      {/* カレンダー本体 */}
+      <div className="fc-google-style overflow-x-hidden">
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
@@ -198,7 +197,6 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
           selectable={role !== 'driver'}
           select={handleDateSelect}
           eventContent={renderEventContent}
-          // Strip "日" suffix from date numbers
           dayCellContent={(e) => ({ html: `<span class="fc-day-num">${e.date.getDate()}</span>` })}
           height="auto"
           slotMinTime="06:00:00"
@@ -206,7 +204,7 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
           allDaySlot={false}
           nowIndicator
           eventTimeFormat={{ hour: '2-digit', minute: '2-digit', hour12: false }}
-          dayMaxEvents={isMobile ? 2 : 4}
+          dayMaxEvents={2}
           moreLinkText={(n) => `+${n}件`}
           listDayFormat={{ month: 'numeric', day: 'numeric', weekday: 'short' }}
           listDaySideFormat={false}
@@ -225,105 +223,84 @@ export function CalendarView({ reservations, drivers, role, driverId }: Calendar
       />
 
       <style>{`
-        /* === Day header === */
+        /* 曜日ヘッダー */
         .fc-google-style .fc-theme-standard th {
           background: #fff;
           border-color: #e5e7eb;
-          padding: 6px 0;
-          font-size: 11px;
+          padding: 4px 0;
+          font-size: 10px;
           font-weight: 500;
           color: #70757a;
           text-transform: uppercase;
-          letter-spacing: 0.05em;
         }
         .fc-google-style .fc-theme-standard td,
         .fc-google-style .fc-theme-standard .fc-scrollgrid {
           border-color: #e5e7eb;
         }
 
-        /* === Date numbers (no 日 suffix) === */
+        /* 日付数字 */
         .fc-google-style .fc-daygrid-day-top {
           justify-content: flex-end;
-          padding: 2px 4px;
+          padding: 1px 2px;
         }
-        .fc-google-style .fc-daygrid-day-number {
-          padding: 0;
-          text-decoration: none !important;
-        }
+        .fc-google-style .fc-daygrid-day-number { padding: 0; text-decoration: none !important; }
         .fc-google-style .fc-day-num {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 24px;
-          height: 24px;
+          width: 22px;
+          height: 22px;
           border-radius: 50%;
-          font-size: 12px;
+          font-size: 11px;
           color: #70757a;
-          margin: 3px;
+          margin: 2px;
         }
         .fc-google-style .fc-day-today .fc-day-num {
           background-color: #1a73e8;
           color: #fff !important;
           font-weight: 600;
         }
-        .fc-google-style .fc-day-today {
-          background-color: rgba(26, 115, 232, 0.04) !important;
-        }
+        .fc-google-style .fc-day-today { background-color: rgba(26,115,232,0.04) !important; }
 
-        /* === Events === */
-        .fc-google-style .fc-event {
-          border: none !important;
-          border-radius: 4px;
-          box-shadow: none;
-          cursor: pointer;
-        }
+        /* イベント */
+        .fc-google-style .fc-event { border: none !important; border-radius: 3px; cursor: pointer; }
         .fc-google-style .fc-event:hover { filter: brightness(0.92); }
         .fc-google-style .fc-daygrid-event-dot { display: none; }
+        .fc-google-style .fc-more-link { color: #1a73e8; font-size: 10px; font-weight: 500; }
 
-        /* === More link === */
-        .fc-google-style .fc-more-link {
-          color: #1a73e8;
-          font-size: 11px;
-          font-weight: 500;
-        }
+        /* 月グリッド セル高さ */
+        .fc-google-style .fc-daygrid-day-frame { min-height: 52px; }
 
-        /* === Time grid === */
-        .fc-google-style .fc-timegrid-slot { height: 44px; border-color: #e5e7eb; }
+        /* タイムグリッド */
+        .fc-google-style .fc-timegrid-slot { height: 40px; border-color: #e5e7eb; }
         .fc-google-style .fc-timegrid-slot-label { font-size: 10px; color: #70757a; }
         .fc-google-style .fc-now-indicator-line { border-color: #ea4335; }
         .fc-google-style .fc-now-indicator-arrow { border-top-color: #ea4335; border-bottom-color: #ea4335; }
 
-        /* === List view === */
+        /* リスト表示 */
         .fc-google-style .fc-list-event:hover td { background: #f1f3f4; }
         .fc-google-style .fc-list-day-cushion {
           background: #f8f9fa;
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
           color: #3c4043;
-          padding: 6px 14px;
+          padding: 5px 10px;
         }
-        .fc-google-style .fc-list-event td { padding: 8px 14px; font-size: 13px; }
+        .fc-google-style .fc-list-event td { padding: 7px 10px; font-size: 12px; }
         .fc-google-style .fc-list-event-dot { display: none; }
-        .fc-google-style .fc-list-empty {
-          background: #fff;
-          color: #70757a;
-          font-size: 13px;
-          padding: 40px 0;
-        }
+        .fc-google-style .fc-list-empty { background:#fff; color:#70757a; font-size:12px; }
+        .fc-google-style .fc-col-header-cell-cushion { text-decoration:none !important; color:#70757a; }
 
-        /* === Column header link === */
-        .fc-google-style .fc-col-header-cell-cushion {
-          text-decoration: none !important;
-          color: #70757a;
-        }
-
-        /* === Mobile compact === */
+        /* スマホ専用コンパクト */
         @media (max-width: 767px) {
-          .fc-google-style .fc-daygrid-day-frame { min-height: 48px; }
-          .fc-google-style .fc-day-num { width: 20px; height: 20px; font-size: 11px; }
-          .fc-google-style .fc-timegrid-slot { height: 36px; }
-          .fc-google-style .fc-list-day-cushion { padding: 5px 10px; font-size: 11px; }
-          .fc-google-style .fc-list-event td { padding: 6px 10px; font-size: 12px; }
+          .fc-google-style .fc-daygrid-day-frame { min-height: 44px; }
+          .fc-google-style .fc-day-num { width: 18px; height: 18px; font-size: 10px; margin: 1px; }
+          .fc-google-style .fc-daygrid-event { margin: 0 1px 1px; }
+          .fc-google-style .fc-timegrid-slot { height: 32px; }
+          .fc-google-style .fc-scrollgrid-sync-table { width: 100% !important; }
+          /* 月グリッドを画面幅に強制フィット */
+          .fc-google-style .fc-daygrid-body { width: 100% !important; }
+          .fc-google-style table { width: 100% !important; }
         }
       `}</style>
     </div>

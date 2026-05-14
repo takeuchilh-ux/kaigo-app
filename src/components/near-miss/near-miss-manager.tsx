@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 import type { NearMissReport, UserRole } from '@/types'
-import { Plus, AlertTriangle, Calendar, MapPin, Image as ImageIcon, Navigation, Loader2 } from 'lucide-react'
+import { Plus, AlertTriangle, Calendar, MapPin, Image as ImageIcon, Navigation, Loader2, Trash2 } from 'lucide-react'
 
 interface Props {
   initialReports: NearMissReport[]
@@ -38,6 +38,7 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
   const [saving, setSaving] = useState(false)
   const [locating, setLocating] = useState(false)
   const [locError, setLocError] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
   // Geocoder ref (loaded on demand)
   const geocoderRef = useRef<google.maps.Geocoder | null>(null)
@@ -135,6 +136,13 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
     setOpen(false)
   }
 
+  async function handleDelete(id: string) {
+    await supabase.from('near_miss_reports').delete().eq('id', id)
+    setReports(prev => prev.filter(r => r.id !== id))
+    setDeleteConfirm(null)
+    setDetailOpen(false)
+  }
+
   function openDetail(r: NearMissReport) {
     setSelected(r)
     setDetailOpen(true)
@@ -159,11 +167,10 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
           reports.map(r => (
             <div
               key={r.id}
-              className="bg-white rounded-xl border border-gray-200 p-4 cursor-pointer hover:border-blue-300 transition-colors"
-              onClick={() => openDetail(r)}
+              className="bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-300 transition-colors"
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 cursor-pointer" onClick={() => openDetail(r)}>
                   <div className="flex items-center gap-2 text-xs text-gray-500 mb-1 flex-wrap">
                     <Calendar className="w-3 h-3" />
                     {new Date(r.occurred_at).toLocaleString('ja-JP')}
@@ -181,12 +188,21 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
                   )}
                   <p className="text-sm text-gray-700 line-clamp-2">{r.description}</p>
                 </div>
-                {(r as any).near_miss_photos?.length > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                    <ImageIcon className="w-3 h-3" />
-                    {(r as any).near_miss_photos.length}
-                  </div>
-                )}
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {(r as any).near_miss_photos?.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <ImageIcon className="w-3 h-3" />
+                      {(r as any).near_miss_photos.length}
+                    </div>
+                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(r.id) }}
+                    className="p-1.5 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                    title="削除"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           ))
@@ -319,11 +335,40 @@ export function NearMissManager({ initialReports, drivers, role, currentDriverId
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirm dialog */}
+      <Dialog open={!!deleteConfirm} onOpenChange={v => !v && setDeleteConfirm(null)}>
+        <DialogContent className="max-w-sm w-[calc(100vw-2rem)]">
+          <DialogHeader><DialogTitle>レポートを削除しますか？</DialogTitle></DialogHeader>
+          <p className="text-sm text-gray-600">この操作は取り消せません。添付写真も含めて削除されます。</p>
+          <div className="flex gap-2 mt-2">
+            <Button
+              variant="outline"
+              className="flex-1 border-red-300 text-red-600 hover:bg-red-50"
+              onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            >
+              削除する
+            </Button>
+            <Button className="flex-1" onClick={() => setDeleteConfirm(null)}>キャンセル</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Detail dialog */}
       <Dialog open={detailOpen} onOpenChange={v => !v && setDetailOpen(false)}>
         <DialogContent className="max-w-lg w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>ヒヤリハット詳細</DialogTitle>
+            <div className="flex items-center justify-between pr-6">
+              <DialogTitle>ヒヤリハット詳細</DialogTitle>
+              {selected && (
+                <button
+                  onClick={() => setDeleteConfirm(selected.id)}
+                  className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded-md transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  削除
+                </button>
+              )}
+            </div>
           </DialogHeader>
           {selected && (
             <div className="space-y-4 text-sm">

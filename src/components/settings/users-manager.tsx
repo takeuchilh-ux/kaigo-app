@@ -30,7 +30,7 @@ export function UsersManager() {
   const [error, setError] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<AppUser | null>(null)
-  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'staff' as AppUser['role'] })
+  const [form, setForm] = useState({ email: '', password: '', name: '', role: 'staff' as AppUser['role'], newPassword: '' })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
@@ -46,13 +46,13 @@ export function UsersManager() {
 
   function openCreate() {
     setEditTarget(null)
-    setForm({ email: '', password: '', name: '', role: 'staff' })
+    setForm({ email: '', password: '', name: '', role: 'staff', newPassword: '' })
     setModalOpen(true)
   }
 
   function openEdit(u: AppUser) {
     setEditTarget(u)
-    setForm({ email: u.email, password: '', name: u.name, role: u.role })
+    setForm({ email: u.email, password: '', name: u.name, role: u.role, newPassword: '' })
     setModalOpen(true)
   }
 
@@ -64,7 +64,7 @@ export function UsersManager() {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editTarget.id, name: form.name, userRole: form.role }),
+        body: JSON.stringify({ id: editTarget.id, name: form.name, userRole: form.role, password: form.newPassword }),
       })
       if (!res.ok) { setError((await res.json()).error); setSaving(false); return }
     } else {
@@ -155,7 +155,7 @@ export function UsersManager() {
               <Label>氏名</Label>
               <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="氏名" />
             </div>
-            {!editTarget && (
+            {!editTarget ? (
               <>
                 <div className="space-y-1.5">
                   <Label>メールアドレス</Label>
@@ -163,9 +163,19 @@ export function UsersManager() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>パスワード（初期）</Label>
-                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="8文字以上" />
+                  <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="6文字以上" />
                 </div>
               </>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>パスワード変更 <span className="text-xs text-gray-400 font-normal">（変更する場合のみ入力）</span></Label>
+                <Input
+                  type="password"
+                  value={form.newPassword}
+                  onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))}
+                  placeholder="新しいパスワード（6文字以上）"
+                />
+              </div>
             )}
             <div className="space-y-1.5">
               <Label>ロール</Label>

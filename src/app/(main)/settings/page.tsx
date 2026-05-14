@@ -22,6 +22,7 @@ export default async function SettingsPage({
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">設定・マスタ管理</h1>
         <SettingsManager
+          key={params.tab ?? 'default'}
           initialMasterOptions={masterOptionsRes.data ?? []}
           initialStaffMembers={staffMembersRes.data ?? []}
           initialTab={params.tab}

@@ -84,19 +84,27 @@ export async function POST(req: Request) {
   return NextResponse.json({ success: true })
 }
 
-// PUT /api/admin/users — update role/name
+// PUT /api/admin/users — update role/name/password
 export async function PUT(req: Request) {
   const role = await getCallerRole()
   if (role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { id, name, userRole } = await req.json()
+  const { id, name, userRole, password } = await req.json()
   const admin = adminClient()
+
+  // Update role and name
   const { error } = await admin
     .from('user_roles')
     .update({ role: userRole, name })
     .eq('id', id)
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Update password if provided
+  if (password && password.trim().length >= 6) {
+    const { error: pwErr } = await admin.auth.admin.updateUserById(id, { password })
+    if (pwErr) return NextResponse.json({ error: pwErr.message }, { status: 500 })
+  }
+
   return NextResponse.json({ success: true })
 }
 
